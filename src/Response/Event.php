@@ -1,4 +1,4 @@
 <?php
 namespace Alphagov\Pay\Response;
 
-class Event extends AbstractResponse {}
+class Event extends AbstractData {}

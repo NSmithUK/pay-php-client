@@ -138,39 +138,37 @@ class Client {
             'return_url'    => (string)$returnUrl,
         ]);
 
-        return ( is_array($response) ) ? new Response\Payment($response) : $response;
+        return ( $response instanceof ResponseInterface ) ? Response\Payment::buildWithResponse($response) : $response;
         
     }
 
-    public function getPayment( $paymentId ){
+    public function getPayment( $payment ){
+
+        $paymentId = ( $payment instanceof Response\Payment ) ? $payment->payment_id : $payment;
 
         $path = sprintf( self::PATH_PAYMENT_LOOKUP, $paymentId );
 
         $response = $this->httpGet( $path );
 
-        return ( is_array($response) ) ? new Response\Payment($response) : null;
+        return ( $response instanceof ResponseInterface ) ? Response\Payment::buildWithResponse($response) : $response;
 
     }
 
-    public function getPaymentEvents( $paymentId ){
+    public function getPaymentEvents( $payment ){
+
+        $paymentId = ( $payment instanceof Response\Payment ) ? $payment->payment_id : $payment;
 
         $path = sprintf( self::PATH_PAYMENT_EVENTS, $paymentId );
 
-        $response =  $this->httpGet( $path );
+        $response = $this->httpGet( $path );
 
-        // Ensure we have an array of events
-        if( !isset($response['events']) || !is_array($response['events']) ){
-            return array();
-        }
-
-        // Map arrays to Event objects
-        return array_map( function($event){
-            return new Response\Event( $event );
-        }, $response['events']);
+        return ( $response instanceof ResponseInterface ) ? Response\Events::buildWithResponse($response) : $response;
 
     }
 
-    public function cancelPayment( $paymentId ){
+    public function cancelPayment( $payment ){
+
+        $paymentId = ( $payment instanceof Response\Payment ) ? $payment->payment_id : $payment;
 
         $path = sprintf( self::PATH_PAYMENT_CANCEL, $paymentId );
 
@@ -188,7 +186,9 @@ class Client {
             'to_date',
         ]));
 
-        return $this->httpGet( self::PATH_PAYMENT_LIST, $filters );
+        $response = $this->httpGet( self::PATH_PAYMENT_LIST, $filters );
+
+        return ( $response instanceof ResponseInterface ) ? Response\Payments::buildWithResponse($response) : $response;
         
     }
 
@@ -250,7 +250,7 @@ class Client {
 
         switch( $response->getStatusCode() ){
             case 200:
-                return $this->handleResponse( $response );
+                return $response;
             case 404:
                 return null;
             default:
@@ -290,7 +290,7 @@ class Client {
 
         switch( $response->getStatusCode() ){
             case 201:
-                return $this->handleResponse( $response );
+                return $response;
             case 204:
                 return true;
             default:
@@ -301,27 +301,6 @@ class Client {
 
     //-------------------------------------------
     // Response Handling
-
-    /**
-     * Called with a response from the API when the response code was successful. i.e. 20X.
-     *
-     * @param ResponseInterface $response
-     *
-     * @return array
-     * @throw Exception\ApiException
-     */
-    protected function handleResponse( ResponseInterface $response ){
-
-        $body = json_decode($response->getBody(), true);
-
-        // The expected response should always be JSON, thus now an array.
-        if( !is_array($body) ){
-            throw new Exception\ApiException( 'Malformed JSON response from server', $response->getStatusCode(), $response );
-        }
-
-        return $body;
-
-    }
 
     /**
      * Called with a response from the API when the response code was unsuccessful. i.e. not 20X.

@@ -3,7 +3,10 @@ namespace Alphagov\Pay\Response;
 
 use GuzzleHttp\Psr7\Uri;
 
-class Payment extends AbstractResponse {
+use Alphagov\Pay\Exception;
+
+class Payment extends AbstractData {
+    use IncludeResponseTrait;
 
     public function canContinue(){
 
