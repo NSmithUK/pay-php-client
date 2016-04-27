@@ -10,7 +10,7 @@ trait IncludeResponseTrait {
     
     //---
 
-    public static function buildWithResponse( ResponseInterface $response ){
+    public static function buildFromResponse( ResponseInterface $response ){
 
         $body = json_decode($response->getBody(), true);
 

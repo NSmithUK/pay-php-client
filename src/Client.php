@@ -23,10 +23,10 @@ class Client {
      * @const string Current version of this client.
      * This follows Semantic Versioning (http://semver.org/)
      */
-    const VERSION = '0.1.0';
+    const VERSION = '0.2.0';
 
     /**
-     * @const string The API endpoint for Notify production.
+     * @const string The API endpoint for Pay production.
      */
     const BASE_URL_PRODUCTION = 'https://publicapi.pymnt.uk';
 
@@ -82,7 +82,7 @@ class Client {
         } else {
 
             throw new Exception\InvalidArgumentException(
-                "Invalid 'baseUrl' set. This must be either a valid URL, or null."
+                "Invalid 'baseUrl' set. This must be either a valid URL, or null to use the production URL."
             );
 
         }
@@ -117,7 +117,6 @@ class Client {
 
         }
 
-        
     }
 
     //------------------------------------------------------------------------------------
@@ -138,7 +137,13 @@ class Client {
             'return_url'    => (string)$returnUrl,
         ]);
 
-        return ( $response instanceof ResponseInterface ) ? Response\Payment::buildWithResponse($response) : $response;
+        //---
+
+        if( $response->getStatusCode() != 201 ){
+            throw $this->createErrorException( $response );
+        }
+
+        return Response\Payment::buildFromResponse($response);
         
     }
 
@@ -150,7 +155,9 @@ class Client {
 
         $response = $this->httpGet( $path );
 
-        return ( $response instanceof ResponseInterface ) ? Response\Payment::buildWithResponse($response) : $response;
+        //---
+
+        return ( $response->getStatusCode() == 200 ) ? Response\Payment::buildFromResponse($response) : null;
 
     }
 
@@ -162,7 +169,9 @@ class Client {
 
         $response = $this->httpGet( $path );
 
-        return ( $response instanceof ResponseInterface ) ? Response\Events::buildWithResponse($response) : $response;
+        //---
+
+        return ( $response->getStatusCode() == 200 ) ? Response\Events::buildFromResponse($response) : array();
 
     }
 
@@ -172,7 +181,15 @@ class Client {
 
         $path = sprintf( self::PATH_PAYMENT_CANCEL, $paymentId );
 
-        return $this->httpPost( $path );
+        $response = $this->httpPost( $path );
+
+        //---
+
+        if( $response->getStatusCode() != 204 ){
+            throw $this->createErrorException( $response );
+        }
+
+        return true;
 
     }
 
@@ -188,7 +205,9 @@ class Client {
 
         $response = $this->httpGet( self::PATH_PAYMENT_LIST, $filters );
 
-        return ( $response instanceof ResponseInterface ) ? Response\Payments::buildWithResponse($response) : $response;
+        //---
+
+        return ( $response->getStatusCode() == 200 ) ? Response\Payments::buildFromResponse($response) : array();
         
     }
 
@@ -221,7 +240,7 @@ class Client {
      * @param string $path
      * @param array  $query
      *
-     * @return array|null
+     * @return ResponseInterface
      * @throw Exception\PayException | Exception\ApiException | Exception\UnexpectedValueException
      */
     private function httpGet( $path, array $query = array() ){
@@ -248,14 +267,13 @@ class Client {
             throw new Exception\PayException( $e->getMessage(), $e->getCode(), $e );
         }
 
-        switch( $response->getStatusCode() ){
-            case 200:
-                return $response;
-            case 404:
-                return null;
-            default:
-                return $this->handleErrorResponse( $response );
+        //---
+
+        if( !in_array($response->getStatusCode(), [200, 404]) ){
+            throw $this->createErrorException( $response );
         }
+
+        return $response;
 
     }
 
@@ -266,7 +284,7 @@ class Client {
      * @param string $path
      * @param array  $payload
      *
-     * @return array
+     * @return ResponseInterface
      * @throw Exception\PayException | Exception\ApiException | Exception\UnexpectedValueException
      */
     private function httpPost( $path, array $payload = array() ){
@@ -288,14 +306,13 @@ class Client {
             throw new Exception\PayException( $e->getMessage(), $e->getCode(), $e );
         }
 
-        switch( $response->getStatusCode() ){
-            case 201:
-                return $response;
-            case 204:
-                return true;
-            default:
-                return $this->handleErrorResponse( $response );
+        //---
+
+        if( !in_array($response->getStatusCode(), [201, 204]) ){
+            throw $this->createErrorException( $response );
         }
+
+        return $response;
 
     }
 
@@ -307,17 +324,16 @@ class Client {
      *
      * @param ResponseInterface $response
      *
-     * @return null
-     * @throw Exception\ApiException
+     * @return Exception\ApiException
      */
-    protected function handleErrorResponse( ResponseInterface $response ){
+    protected function createErrorException( ResponseInterface $response ){
 
         $body = json_decode($response->getBody(), true);
 
         $message = "HTTP:{$response->getStatusCode()} - ";
         $message .= (is_array($body)) ? print_r($body, true) : 'Unexpected response from server';
 
-        throw new Exception\ApiException( $message, $response->getStatusCode(), $response );
+        return new Exception\ApiException( $message, $response->getStatusCode(), $response );
 
     }
 
