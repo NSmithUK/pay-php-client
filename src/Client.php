@@ -248,7 +248,7 @@ class Client {
         $url = new Uri( $this->baseUrl . $path );
 
         foreach( $query as $name => $value ){
-            $url = URI::withQueryValue($url, $name, $value );
+            $url = Uri::withQueryValue($url, $name, $value );
         }
 
         //---
