@@ -1,2 +1,5 @@
 # GOV.UK Pay - pay-php-client [pre-release]
-PHP client for Pay API
+
+This repository is no longer used.
+
+Moved to https://github.com/alphagov/pay-integration-php
